@@ -8,7 +8,9 @@ import java.util.List;
 @Repository
 public interface JobListingRepository extends JpaRepository<JobListing, Integer>
 {
-    List<JobListing> findByIsExpiredFalse();
+    List<JobListing> findByStatus(JobListing.Status status);
+
+    List<JobListing> findByStatusAndIsRemoteTrue(JobListing.Status status);
 
     List<JobListing> findByCompanyNameContainingIgnoreCase(String keyword);
 

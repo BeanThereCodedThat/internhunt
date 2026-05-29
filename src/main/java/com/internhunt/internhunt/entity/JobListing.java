@@ -47,8 +47,21 @@ public class JobListing
     @Column(updatable = false)
     private LocalDateTime scrapedAt;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Boolean isExpired = false;
+    private Status status = Status.ACTIVE;
+
+    private LocalDateTime lastSeenAt;
+
+    private LocalDateTime lastCheckedAt;
+
+    public enum Status
+    {
+        ACTIVE,
+        CLOSED,
+        EXPIRED,
+        INVALID
+    }
 
     @PrePersist
     protected void onCreate()
@@ -194,13 +207,33 @@ public class JobListing
         this.scrapedAt = scrapedAt;
     }
 
-    public Boolean getIsExpired()
+    public Status getStatus()
     {
-        return isExpired;
+        return status;
     }
 
-    public void setIsExpired(Boolean isExpired)
+    public void setStatus(Status status)
     {
-        this.isExpired = isExpired;
+        this.status = status;
+    }
+
+    public LocalDateTime getLastSeenAt()
+    {
+        return lastSeenAt;
+    }
+
+    public void setLastSeenAt(LocalDateTime lastSeenAt)
+    {
+        this.lastSeenAt = lastSeenAt;
+    }
+
+    public LocalDateTime getLastCheckedAt()
+    {
+        return lastCheckedAt;
+    }
+
+    public void setLastCheckedAt(LocalDateTime lastCheckedAt)
+    {
+        this.lastCheckedAt = lastCheckedAt;
     }
 }
