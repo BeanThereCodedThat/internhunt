@@ -30,7 +30,24 @@ public class JobListingService
 
     public List<JobListing> getActiveJobListings()
     {
-        return jobListingRepository.findByIsExpiredFalse();
+        return jobListingRepository.findByStatus(JobListing.Status.ACTIVE);
+    }
+
+    public List<JobListing> getActiveRemoteJobListings()
+    {
+        return jobListingRepository.findByStatusAndIsRemoteTrue(JobListing.Status.ACTIVE);
+    }
+
+    public JobListing updateStatus(Integer id, JobListing.Status status)
+    {
+        return jobListingRepository.findById(id)
+                .map(job ->
+                {
+                    job.setStatus(status);
+                    job.setLastCheckedAt(java.time.LocalDateTime.now());
+                    return jobListingRepository.save(job);
+                })
+                .orElseThrow(() -> new RuntimeException("Job not found"));
     }
 
     public List<JobListing> getRemoteJobListings()
