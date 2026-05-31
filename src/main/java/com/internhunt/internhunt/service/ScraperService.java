@@ -7,6 +7,7 @@ import com.internhunt.internhunt.entity.Source;
 import com.internhunt.internhunt.repository.JobSourceRepository;
 import com.internhunt.internhunt.repository.ScraperLogRepository;
 import com.internhunt.internhunt.repository.SourceRepository;
+import com.internhunt.internhunt.scraper.companies.InternshalaScraper;
 import com.internhunt.internhunt.scraper.companies.UnstopScraper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,9 @@ public class ScraperService
     private UnstopScraper unstopScraper;
 
     @Autowired
+    private InternshalaScraper internshalaScraper;
+
+    @Autowired
     private JobListingService jobListingService;
 
     @Autowired
@@ -33,13 +37,34 @@ public class ScraperService
     @Autowired
     private ScraperLogRepository scraperLogRepository;
 
+    public void runScraper(String sourceName)
+    {
+        switch (sourceName)
+        {
+            case "unstop" -> runUnstopScraper();
+            case "internshala" -> runInternshalaScraper();
+            default -> System.err.println("Unknown scraper: " + sourceName);
+        }
+    }
+
     public void runUnstopScraper()
     {
-        Optional<Source> sourceOpt = sourceRepository.findByName("unstop");
+        runScraperInternal("unstop", unstopScraper);
+    }
+
+    public void runInternshalaScraper()
+    {
+        runScraperInternal("internshala", internshalaScraper);
+    }
+
+    private void runScraperInternal(String sourceName,
+                                    com.internhunt.internhunt.scraper.base.JobScraper scraper)
+    {
+        Optional<Source> sourceOpt = sourceRepository.findByName(sourceName);
 
         if (sourceOpt.isEmpty())
         {
-            System.err.println("Unstop source not found in database");
+            System.err.println(sourceName + " source not found in database");
             return;
         }
 
@@ -49,8 +74,10 @@ public class ScraperService
 
         try
         {
-            unstopScraper.setSource(source);
-            List<JobListing> jobs = unstopScraper.scrape();
+            if (scraper instanceof UnstopScraper us) us.setSource(source);
+            else if (scraper instanceof InternshalaScraper is) is.setSource(source);
+
+            List<JobListing> jobs = scraper.scrape();
 
             int saved = 0;
             int skipped = 0;
@@ -93,14 +120,14 @@ public class ScraperService
             log.setJobsSkipped(skipped);
             log.setStatus(ScraperLog.Status.SUCCESS);
 
-            System.out.println("Unstop scrape complete — found: "
+            System.out.println(sourceName + " scrape complete — found: "
                     + jobs.size() + " saved: " + saved + " skipped: " + skipped);
         }
         catch (Exception e)
         {
             log.setStatus(ScraperLog.Status.FAILED);
             log.setErrorMessage(e.getMessage());
-            System.err.println("Unstop scraper failed: " + e.getMessage());
+            System.err.println(sourceName + " scraper failed: " + e.getMessage());
         }
         finally
         {
