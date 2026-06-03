@@ -4,6 +4,8 @@ import com.internhunt.internhunt.entity.JobListing;
 import com.internhunt.internhunt.repository.JobListingRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,60 +15,43 @@ public class JobListingService
     @Autowired
     private JobListingRepository jobListingRepository;
 
-    public JobListing createJobListing(JobListing jobListing)
+    /** Called by ScraperService to persist each scraped job. */
+    public JobListing createJobListing(JobListing job)
     {
-        return jobListingRepository.save(jobListing);
+        if (job.getStatus() == null)
+            job.setStatus(JobListing.Status.ACTIVE);
+        if (job.getLastSeenAt() == null)
+            job.setLastSeenAt(LocalDateTime.now());
+        return jobListingRepository.save(job);
     }
 
-    public Optional<JobListing> getJobListingById(Integer id)
+    public Optional<JobListing> getById(Integer id)
     {
         return jobListingRepository.findById(id);
     }
 
-    public List<JobListing> getAllJobListings()
-    {
-        return jobListingRepository.findAll();
-    }
-
-    public List<JobListing> getActiveJobListings()
+    public List<JobListing> getActiveJobs()
     {
         return jobListingRepository.findByStatus(JobListing.Status.ACTIVE);
     }
 
-    public List<JobListing> getActiveRemoteJobListings()
+    public List<JobListing> getActiveRemoteJobs()
     {
         return jobListingRepository.findByStatusAndIsRemoteTrue(JobListing.Status.ACTIVE);
     }
 
-    public JobListing updateStatus(Integer id, JobListing.Status status)
-    {
-        return jobListingRepository.findById(id)
-                .map(job ->
-                {
-                    job.setStatus(status);
-                    job.setLastCheckedAt(java.time.LocalDateTime.now());
-                    return jobListingRepository.save(job);
-                })
-                .orElseThrow(() -> new RuntimeException("Job not found"));
-    }
-
-    public List<JobListing> getRemoteJobListings()
+    public List<JobListing> getRemoteJobs()
     {
         return jobListingRepository.findByIsRemoteTrue();
     }
 
-    public List<JobListing> searchByCompany(String keyword)
+    public List<JobListing> searchByCompany(String company)
     {
-        return jobListingRepository.findByCompanyNameContainingIgnoreCase(keyword);
+        return jobListingRepository.findByCompanyNameContainingIgnoreCase(company);
     }
 
-    public JobListing updateJobListing(JobListing jobListing)
+    public long getTotalCount()
     {
-        return jobListingRepository.save(jobListing);
-    }
-
-    public void deleteJobListing(Integer id)
-    {
-        jobListingRepository.deleteById(id);
+        return jobListingRepository.count();
     }
 }

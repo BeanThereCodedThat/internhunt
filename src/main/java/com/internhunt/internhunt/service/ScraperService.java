@@ -7,9 +7,12 @@ import com.internhunt.internhunt.entity.Source;
 import com.internhunt.internhunt.repository.JobSourceRepository;
 import com.internhunt.internhunt.repository.ScraperLogRepository;
 import com.internhunt.internhunt.repository.SourceRepository;
+import com.internhunt.internhunt.scraper.base.JobScraper;
+import com.internhunt.internhunt.scraper.companies.HackerNewsScraper;
 import com.internhunt.internhunt.scraper.companies.InternshalaScraper;
 import com.internhunt.internhunt.scraper.companies.UnstopScraper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -19,52 +22,47 @@ import java.util.Optional;
 @Service
 public class ScraperService
 {
-    @Autowired
-    private UnstopScraper unstopScraper;
+    @Autowired private UnstopScraper        unstopScraper;
+    @Autowired private InternshalaScraper   internshalaScraper;
+    @Autowired private HackerNewsScraper    hackerNewsScraper;
 
-    @Autowired
-    private InternshalaScraper internshalaScraper;
+    @Autowired private JobListingService    jobListingService;
+    @Autowired private SourceRepository     sourceRepository;
+    @Autowired private JobSourceRepository  jobSourceRepository;
+    @Autowired private ScraperLogRepository scraperLogRepository;
 
-    @Autowired
-    private JobListingService jobListingService;
+    // ------------------------------------------------------------------ //
+    //  Public API — all async so the HTTP response returns immediately     //
+    // ------------------------------------------------------------------ //
 
-    @Autowired
-    private SourceRepository sourceRepository;
-
-    @Autowired
-    private JobSourceRepository jobSourceRepository;
-
-    @Autowired
-    private ScraperLogRepository scraperLogRepository;
-
+    @Async
     public void runScraper(String sourceName)
     {
         switch (sourceName)
         {
-            case "unstop" -> runUnstopScraper();
-            case "internshala" -> runInternshalaScraper();
-            default -> System.err.println("Unknown scraper: " + sourceName);
+            case "unstop"      -> runScraperInternal("unstop",      unstopScraper);
+            case "internshala" -> runScraperInternal("internshala", internshalaScraper);
+            case "hackernews"  -> runScraperInternal("hackernews",  hackerNewsScraper);
+            default            -> System.err.println("[scraper] Unknown source: " + sourceName);
         }
     }
 
-    public void runUnstopScraper()
-    {
-        runScraperInternal("unstop", unstopScraper);
-    }
+    @Async public void runUnstopScraper()      { runScraper("unstop");      }
+    @Async public void runInternshalaScraper() { runScraper("internshala"); }
+    @Async public void runHackerNewsScraper()  { runScraper("hackernews");  }
 
-    public void runInternshalaScraper()
-    {
-        runScraperInternal("internshala", internshalaScraper);
-    }
+    // ------------------------------------------------------------------ //
+    //  Shared scraper engine                                               //
+    // ------------------------------------------------------------------ //
 
-    private void runScraperInternal(String sourceName,
-                                    com.internhunt.internhunt.scraper.base.JobScraper scraper)
+    private void runScraperInternal(String sourceName, JobScraper scraper)
     {
         Optional<Source> sourceOpt = sourceRepository.findByName(sourceName);
 
         if (sourceOpt.isEmpty())
         {
-            System.err.println(sourceName + " source not found in database");
+            System.err.println("[" + sourceName + "] Source not found in database. "
+                    + "Run the INSERT into sources first.");
             return;
         }
 
@@ -74,20 +72,18 @@ public class ScraperService
 
         try
         {
-            if (scraper instanceof UnstopScraper us) us.setSource(source);
-            else if (scraper instanceof InternshalaScraper is) is.setSource(source);
-
+            scraper.setSource(source);
             List<JobListing> jobs = scraper.scrape();
 
-            int saved = 0;
+            int saved   = 0;
             int skipped = 0;
 
             for (JobListing job : jobs)
             {
                 try
                 {
-                    Optional<JobSource> existing = jobSourceRepository
-                            .findBySourceUrl(job.getSourceUrl());
+                    Optional<JobSource> existing =
+                            jobSourceRepository.findBySourceUrl(job.getSourceUrl());
 
                     if (existing.isPresent())
                     {
@@ -107,7 +103,8 @@ public class ScraperService
                 }
                 catch (Exception e)
                 {
-                    System.err.println("Failed to save job: " + e.getMessage());
+                    System.err.println("[" + sourceName + "] Failed to save job: "
+                            + e.getMessage());
                     skipped++;
                 }
             }
@@ -120,14 +117,16 @@ public class ScraperService
             log.setJobsSkipped(skipped);
             log.setStatus(ScraperLog.Status.SUCCESS);
 
-            System.out.println(sourceName + " scrape complete — found: "
-                    + jobs.size() + " saved: " + saved + " skipped: " + skipped);
+            System.out.println("[" + sourceName + "] scrape complete — "
+                    + "found: " + jobs.size()
+                    + "  saved: " + saved
+                    + "  skipped: " + skipped);
         }
         catch (Exception e)
         {
             log.setStatus(ScraperLog.Status.FAILED);
             log.setErrorMessage(e.getMessage());
-            System.err.println(sourceName + " scraper failed: " + e.getMessage());
+            System.err.println("[" + sourceName + "] scraper failed: " + e.getMessage());
         }
         finally
         {
