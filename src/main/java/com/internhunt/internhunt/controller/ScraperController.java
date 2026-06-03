@@ -2,10 +2,10 @@ package com.internhunt.internhunt.controller;
 
 import com.internhunt.internhunt.service.ScraperService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/scraper")
@@ -15,23 +15,34 @@ public class ScraperController
     private ScraperService scraperService;
 
     @PostMapping("/unstop")
-    public String runUnstopScraper()
+    public ResponseEntity<?> runUnstop()
     {
         scraperService.runUnstopScraper();
-        return "Unstop scraper started";
+        return ResponseEntity.accepted()
+                .body(Map.of("message", "Unstop scraper started", "source", "unstop"));
     }
 
     @PostMapping("/internshala")
-    public String runInternshalaScraper()
+    public ResponseEntity<?> runInternshala()
     {
         scraperService.runInternshalaScraper();
-        return "Internshala scraper started";
+        return ResponseEntity.accepted()
+                .body(Map.of("message", "Internshala scraper started", "source", "internshala"));
+    }
+
+    @PostMapping("/hackernews")
+    public ResponseEntity<?> runHackerNews()
+    {
+        scraperService.runHackerNewsScraper();
+        return ResponseEntity.accepted()
+                .body(Map.of("message", "HackerNews scraper started", "source", "hackernews"));
     }
 
     @PostMapping("/run/{source}")
-    public String runScraper(@PathVariable String source)
+    public ResponseEntity<?> runScraper(@PathVariable String source)
     {
         scraperService.runScraper(source);
-        return source + " scraper started";
+        return ResponseEntity.accepted()
+                .body(Map.of("message", source + " scraper started", "source", source));
     }
 }
