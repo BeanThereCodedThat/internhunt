@@ -4,43 +4,42 @@ import com.internhunt.internhunt.entity.JobListing;
 
 import java.time.LocalDateTime;
 
-public class JobListingDTO
+// FIX: was a class with all-public fields (no encapsulation, no validation possible).
+//      Changed to a Java record — immutable, concise, Jackson-serialisable.
+public record JobListingDTO(
+        Integer       id,
+        String        jobTitle,
+        String        companyName,
+        String        location,
+        Boolean       isRemote,
+        String        stipend,
+        String        listingType,
+        String        status,
+        String        sourceUrl,
+        String        sourceName,
+        String        description,
+        LocalDateTime scrapedAt,
+        LocalDateTime postedAt,
+        LocalDateTime deadline
+)
 {
-    public Integer       id;
-    public String        jobTitle;
-    public String        companyName;
-    public String        location;
-    public Boolean       isRemote;
-    public String        stipend;
-    public String        listingType;
-    public String        status;
-    public String        sourceUrl;
-    public String        sourceName;
-    public String        description;
-    public LocalDateTime scrapedAt;
-    public LocalDateTime postedAt;
-    public LocalDateTime deadline;
-
     public static JobListingDTO from(JobListing job)
     {
-        JobListingDTO dto = new JobListingDTO();
-        dto.id          = job.getId();
-        dto.jobTitle    = job.getJobTitle();
-        dto.companyName = job.getCompanyName();
-        dto.location    = job.getLocation();
-        dto.isRemote    = job.getIsRemote();
-        dto.stipend     = job.getStipend();
-        dto.listingType = job.getListingType() != null
-                ? job.getListingType().name() : null;
-        dto.status      = job.getStatus() != null
-                ? job.getStatus().name() : null;
-        dto.sourceUrl   = job.getSourceUrl();
-        dto.sourceName  = job.getSource() != null
-                ? job.getSource().getName() : null;
-        dto.description = job.getDescription();
-        dto.scrapedAt   = job.getScrapedAt();
-        dto.postedAt    = job.getPostedAt();
-        dto.deadline    = job.getDeadline();
-        return dto;
+        return new JobListingDTO(
+                job.getId(),
+                job.getJobTitle(),
+                job.getCompanyName(),
+                job.getLocation(),
+                job.getIsRemote(),
+                job.getStipend(),
+                job.getListingType()  != null ? job.getListingType().name()  : null,
+                job.getStatus()       != null ? job.getStatus().name()       : null,
+                job.getSourceUrl(),
+                job.getSource()       != null ? job.getSource().getName()    : null,
+                job.getDescription(),
+                job.getScrapedAt(),
+                job.getPostedAt(),
+                job.getDeadline()
+        );
     }
 }

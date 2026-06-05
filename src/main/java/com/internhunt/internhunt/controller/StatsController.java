@@ -3,7 +3,6 @@ package com.internhunt.internhunt.controller;
 import com.internhunt.internhunt.dto.StatsDTO;
 import com.internhunt.internhunt.entity.JobListing;
 import com.internhunt.internhunt.repository.JobListingRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -15,8 +14,13 @@ import java.util.List;
 @RequestMapping("/api/stats")
 public class StatsController
 {
-    @Autowired
-    private JobListingRepository jobListingRepository;
+    // FIX: constructor injection
+    private final JobListingRepository jobListingRepository;
+
+    public StatsController(JobListingRepository jobListingRepository)
+    {
+        this.jobListingRepository = jobListingRepository;
+    }
 
     @GetMapping
     public StatsDTO getStats()

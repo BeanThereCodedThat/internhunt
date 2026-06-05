@@ -3,7 +3,6 @@ package com.internhunt.internhunt.controller;
 import com.internhunt.internhunt.dto.JobListingDTO;
 import com.internhunt.internhunt.entity.JobListing;
 import com.internhunt.internhunt.repository.JobListingRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
@@ -13,12 +12,21 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/jobs")
 public class JobListingController
 {
-    @Autowired
-    private JobListingRepository jobListingRepository;
+    // FIX: constructor injection instead of @Autowired field injection
+    private final JobListingRepository jobListingRepository;
+
+    public JobListingController(JobListingRepository jobListingRepository)
+    {
+        this.jobListingRepository = jobListingRepository;
+    }
 
     /**
      * GET /api/jobs
-     * Params: page, size, search, source, type (internship/job), remote (true/false)
+     * Params: page, size, search, source, type, remote, paid
+     *
+     * paid=true  → only listings with a non-null / non-"Unpaid" stipend
+     * paid=false → only unpaid / null-stipend listings
+     * (omit)     → no stipend filter
      */
     @GetMapping
     public ResponseEntity<?> getJobs(
@@ -27,15 +35,18 @@ public class JobListingController
             @RequestParam(defaultValue = "")   String  search,
             @RequestParam(defaultValue = "")   String  source,
             @RequestParam(defaultValue = "")   String  type,
-            @RequestParam(required = false)    Boolean remote)
+            @RequestParam(required = false)    Boolean remote,
+            @RequestParam(required = false)    Boolean paid)
     {
         size = Math.min(size, 50);
 
-        // Convert type string to enum — null means "all types"
         JobListing.ListingType listingType = null;
         if (!type.isBlank())
         {
-            try { listingType = JobListing.ListingType.valueOf(type.toUpperCase()); }
+            try
+            {
+                listingType = JobListing.ListingType.valueOf(type.toLowerCase());
+            }
             catch (IllegalArgumentException ignored) {}
         }
 

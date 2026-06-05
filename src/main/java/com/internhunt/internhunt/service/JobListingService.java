@@ -2,7 +2,6 @@ package com.internhunt.internhunt.service;
 
 import com.internhunt.internhunt.entity.JobListing;
 import com.internhunt.internhunt.repository.JobListingRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -12,8 +11,13 @@ import java.util.Optional;
 @Service
 public class JobListingService
 {
-    @Autowired
-    private JobListingRepository jobListingRepository;
+    // FIX: constructor injection
+    private final JobListingRepository jobListingRepository;
+
+    public JobListingService(JobListingRepository jobListingRepository)
+    {
+        this.jobListingRepository = jobListingRepository;
+    }
 
     /** Called by ScraperService to persist each scraped job. */
     public JobListing createJobListing(JobListing job)
