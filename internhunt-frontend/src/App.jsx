@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { fetchJobs } from './api'
+import { fetchJobs, fetchMatchScores } from './api'
 import JobCard from './components/JobCard'
 import JobModal from './components/JobModal'
 import StatsBar from './components/StatsBar'
@@ -15,6 +15,7 @@ export default function App() {
   const [loading,    setLoading]    = useState(true)
   const [selected,   setSelected]   = useState(null)
   const [statsKey,   setStatsKey]   = useState(0)
+  const [scores,     setScores]     = useState({})
 
   const [search, setSearch] = useState('')
   const [source, setSource] = useState('')
@@ -38,6 +39,10 @@ export default function App() {
       setTotal(data.totalElements || 0)
       setTotalPages(data.totalPages || 0)
       setPage(pg)
+
+      // Fire-and-forget — badges just show "no data" until this resolves.
+      const ids = (data.content || []).map(j => j.id)
+      fetchMatchScores(ids).then(setScores)
     } catch (e) {
       console.error(e)
     } finally {
@@ -180,7 +185,7 @@ export default function App() {
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
                 {jobs.map(job => (
-                  <JobCard key={job.id} job={job} onClick={setSelected} />
+                  <JobCard key={job.id} job={job} onClick={setSelected} matchScore={scores[job.id]} />
                 ))}
               </div>
 

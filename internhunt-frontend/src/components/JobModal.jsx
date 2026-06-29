@@ -1,11 +1,18 @@
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
+import { ACTIVE_USER_ID } from '../api'
+import MatchPanel from './MatchPanel'
 
 export default function JobModal({ job, onClose }) {
+  const [tab, setTab] = useState('details')
+
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
+
+  // Reset to Details whenever a different job is opened.
+  useEffect(() => { setTab('details') }, [job?.id])
 
   if (!job) return null
 
@@ -61,51 +68,83 @@ export default function JobModal({ job, onClose }) {
           >×</button>
         </div>
 
-        {/* Meta */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          <MetaItem label="Source"   value={job.sourceName} />
-          <MetaItem label="Type"     value={job.listingType} />
-          <MetaItem label="Location" value={job.location} />
-          <MetaItem label="Remote"   value={job.isRemote ? 'Yes' : 'No'} />
-          {job.stipend && <MetaItem label="Stipend" value={job.stipend} color="var(--green)" />}
-          {job.deadline && <MetaItem label="Deadline" value={new Date(job.deadline).toLocaleDateString()} />}
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 18, borderBottom: '1px solid var(--border)' }}>
+          <TabButton active={tab === 'details'} onClick={() => setTab('details')}>Details</TabButton>
+          <TabButton active={tab === 'match'}   onClick={() => setTab('match')}>AI Match</TabButton>
         </div>
 
-        <hr style={{ border: 'none', borderTop: '1px solid var(--border)' }} />
+        {tab === 'details' ? (
+          <>
+            {/* Meta */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+              <MetaItem label="Source"   value={job.sourceName} />
+              <MetaItem label="Type"     value={job.listingType} />
+              <MetaItem label="Location" value={job.location} />
+              <MetaItem label="Remote"   value={job.isRemote ? 'Yes' : 'No'} />
+              {job.stipend && <MetaItem label="Stipend" value={job.stipend} color="var(--green)" />}
+              {job.deadline && <MetaItem label="Deadline" value={new Date(job.deadline).toLocaleDateString()} />}
+            </div>
 
-        {/* Description */}
-        {job.description && (
-          <div style={{ color: 'var(--muted)', fontSize: '0.88rem', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>
-            {job.description}
-          </div>
-        )}
+            <hr style={{ border: 'none', borderTop: '1px solid var(--border)' }} />
 
-        {/* CTA */}
-        {job.sourceUrl && (
-          <a
-            href={job.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'inline-block',
-              background: 'var(--accent)',
-              color: '#fff',
-              fontFamily: 'var(--font-head)',
-              fontWeight: 600,
-              padding: '12px 24px',
-              borderRadius: 10,
-              textAlign: 'center',
-              marginTop: 4,
-              transition: 'opacity 0.15s',
-            }}
-            onMouseEnter={e => e.target.style.opacity = 0.85}
-            onMouseLeave={e => e.target.style.opacity = 1}
-          >
-            Apply / View Original →
-          </a>
+            {/* Description */}
+            {job.description && (
+              <div style={{ color: 'var(--muted)', fontSize: '0.88rem', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>
+                {job.description}
+              </div>
+            )}
+
+            {/* CTA */}
+            {job.sourceUrl && (
+              <a
+                href={job.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-block',
+                  background: 'var(--accent)',
+                  color: '#fff',
+                  fontFamily: 'var(--font-head)',
+                  fontWeight: 600,
+                  padding: '12px 24px',
+                  borderRadius: 10,
+                  textAlign: 'center',
+                  marginTop: 4,
+                  transition: 'opacity 0.15s',
+                }}
+                onMouseEnter={e => e.target.style.opacity = 0.85}
+                onMouseLeave={e => e.target.style.opacity = 1}
+              >
+                Apply / View Original →
+              </a>
+            )}
+          </>
+        ) : (
+          <MatchPanel job={job} userId={ACTIVE_USER_ID} />
         )}
       </div>
     </div>
+  )
+}
+
+function TabButton({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: 'none',
+        color: active ? 'var(--accent)' : 'var(--muted)',
+        borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
+        padding: '8px 2px',
+        marginBottom: -1,
+        fontSize: '0.88rem',
+        fontWeight: active ? 700 : 500,
+        fontFamily: 'var(--font-head)',
+      }}
+    >
+      {children}
+    </button>
   )
 }
 

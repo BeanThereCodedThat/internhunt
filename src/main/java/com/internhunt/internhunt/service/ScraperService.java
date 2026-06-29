@@ -30,6 +30,7 @@ public class ScraperService
     @Autowired private SourceRepository     sourceRepository;
     @Autowired private JobSourceRepository  jobSourceRepository;
     @Autowired private ScraperLogRepository scraperLogRepository;
+    @Autowired private KeywordSkillExtractor skillExtractor;
 
     // ------------------------------------------------------------------ //
     //  Public API — all async so the HTTP response returns immediately     //
@@ -98,6 +99,9 @@ public class ScraperService
                     jobSource.setSource(source);
                     jobSource.setSourceUrl(job.getSourceUrl());
                     jobSourceRepository.save(jobSource);
+
+                    // Offline, keyword-based — no AI, no external calls. Fire-and-forget.
+                    skillExtractor.extractSkillsForJob(savedJob);
 
                     saved++;
                 }

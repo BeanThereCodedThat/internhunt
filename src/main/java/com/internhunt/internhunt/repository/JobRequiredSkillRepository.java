@@ -11,4 +11,6 @@ public interface JobRequiredSkillRepository extends JpaRepository<JobRequiredSki
     List<JobRequiredSkill> findByJobId(Integer jobId);
 
     List<JobRequiredSkill> findByJobIdAndIsMandatoryTrue(Integer jobId);
+
+    void deleteByJobId(Integer jobId);
 }

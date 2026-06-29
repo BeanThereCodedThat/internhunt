@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import MatchScoreBadge from './MatchScoreBadge'
 
 const SOURCE_COLORS = {
   unstop:      { bg: '#1a1a2e', accent: '#6c63ff', label: 'Unstop' },
@@ -17,7 +18,7 @@ function timeAgo(dateStr) {
   return 'just now'
 }
 
-export default function JobCard({ job, onClick }) {
+export default function JobCard({ job, onClick, matchScore }) {
   const [hovered, setHovered] = useState(false)
   const src = SOURCE_COLORS[job.sourceName] || { bg: '#1a1a1a', accent: '#6b6b7e', label: job.sourceName }
   const isIntern = job.listingType === 'internship'
@@ -61,20 +62,23 @@ export default function JobCard({ job, onClick }) {
             {job.companyName}
           </div>
         </div>
-        <span style={{
-          background: src.bg,
-          color: src.accent,
-          border: `1px solid ${src.accent}40`,
-          borderRadius: 20,
-          padding: '3px 10px',
-          fontSize: '0.72rem',
-          fontWeight: 600,
-          letterSpacing: '0.04em',
-          whiteSpace: 'nowrap',
-          flexShrink: 0,
-        }}>
-          {src.label}
-        </span>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          {typeof matchScore === 'number' && <MatchScoreBadge score={matchScore} />}
+          <span style={{
+            background: src.bg,
+            color: src.accent,
+            border: `1px solid ${src.accent}40`,
+            borderRadius: 20,
+            padding: '3px 10px',
+            fontSize: '0.72rem',
+            fontWeight: 600,
+            letterSpacing: '0.04em',
+            whiteSpace: 'nowrap',
+          }}>
+            {src.label}
+          </span>
+        </div>
       </div>
 
       {/* Meta row */}
