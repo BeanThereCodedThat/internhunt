@@ -18,6 +18,7 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: ci_password
           MYSQL_DATABASE: internhunt
+          MYSQL_ROOT_HOST: '%'
         ports:
           - 3306:3306
         options: >-
