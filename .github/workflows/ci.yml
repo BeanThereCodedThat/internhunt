@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+
+  # ── Backend ────────────────────────────────────────────────────────────────
+  backend:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci_password
+          MYSQL_DATABASE: internhunt
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -pci_password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      # Initialize the schema exactly the same way docker-compose does:
+      # 01_schema.sql first, then 02_seed.sql. The @SpringBootTest
+      # context-load test uses ddl-auto=validate, which checks that the
+      # running DB schema matches the JPA entities — so the schema must
+      # exist before the test runs.
+      - name: Initialize database schema
+        run: |
+          mysql -h 127.0.0.1 -uroot -pci_password internhunt < src/main/resources/schema.sql
+          mysql -h 127.0.0.1 -uroot -pci_password internhunt < src/main/resources/db/seed.sql
+
+      - name: Build and test
+        env:
+          DB_URL: jdbc:mysql://127.0.0.1:3306/internhunt?useSSL=false&allowPublicKeyRetrieval=true
+          DB_USER: root
+          DB_PASSWORD: ci_password
+          # Reddit OAuth credentials — not needed for the test suite, but
+          # @Value fields need something or Spring context init logs warnings.
+          # These are intentionally dummy values; the scraper skips gracefully
+          # when client-id is blank (see RedditScraper.scrape()).
+          SCRAPER_REDDIT_CLIENT_ID: ""
+          SCRAPER_REDDIT_CLIENT_SECRET: ""
+        run: ./mvnw -B clean verify
+
+  # ── Frontend ───────────────────────────────────────────────────────────────
+  frontend:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: internhunt-frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: internhunt-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
