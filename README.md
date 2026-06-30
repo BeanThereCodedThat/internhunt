@@ -99,8 +99,6 @@ skills for any jobs already in the DB.
 - **No CI/CD pipeline** — discussed and drafted, never written into the repo.
 - **No multi-user auth** — `ACTIVE_USER_ID = 1` is hardcoded in `App.jsx`. `ProfilePage` lets you *select* between multiple `User` rows in the DB, but there's no login, so "active user" is still a single hardcoded constant, not a session.
 - **LinkedIn/Naukri/Indeed/Wellfound scrapers are unverified** — built, wired into `ScraperService`, but `is_active=0` and excluded from the scheduler until tested.
-- **`BaseSeleniumScraper` is dead code** — nothing extends it anymore. Safe to delete, just hasn't been.
-- **Selenium/WebDriverManager are still Maven dependencies** despite nothing using them — adds build weight for no reason at this point.
 - **RSS feed scrapers (engineering blogs)** — not started.
 - **Docker production hardening** — current setup is fine for local dev, not yet hardened for a real deploy target.
 
