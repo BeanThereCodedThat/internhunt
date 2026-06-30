@@ -8,10 +8,11 @@
 -- start (after 01_schema.sql), against a fresh MySQL data volume.
 --
 -- is_active matches SchedulerConfig.runCoreScrapeSchedule(), which only ever
--- calls unstop/internshala/hackernews/reddit/company_careers automatically.
--- LinkedIn/Naukri/Indeed/Wellfound are deliberately excluded from that cron
--- job (per its own comment) — they're newer and still need testing, so they
--- stay inactive here too. Flip is_active to 1 once you've verified one works.
+-- calls unstop/internshala/hackernews/reddit/company_careers/rss_blogs
+-- automatically. LinkedIn/Naukri/Indeed/Wellfound are deliberately excluded
+-- from that cron job (per its own comment) — they're newer and still need
+-- testing, so they stay inactive here too. Flip is_active to 1 once you've
+-- verified one works.
 -- ============================================================================
 
 INSERT IGNORE INTO sources (name, url, scrape_frequency, is_active) VALUES
@@ -20,6 +21,7 @@ INSERT IGNORE INTO sources (name, url, scrape_frequency, is_active) VALUES
     ('hackernews',       'https://news.ycombinator.com',      24, 1),
     ('reddit',           'https://www.reddit.com',             24, 1),
     ('company_careers',  'https://various-company-pages',     24, 1),
+    ('rss_blogs',        'https://various-engineering-blogs', 24, 1),
     ('linkedin',         'https://www.linkedin.com/jobs',      24, 0),
     ('naukri',           'https://www.naukri.com',             24, 0),
     ('indeed',           'https://in.indeed.com',              24, 0),

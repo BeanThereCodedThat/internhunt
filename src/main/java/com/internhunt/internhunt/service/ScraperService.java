@@ -31,6 +31,7 @@ public class ScraperService
     @Autowired private NaukriScraper           naukriScraper;
     @Autowired private IndeedScraper           indeedScraper;
     @Autowired private WellfoundScraper        wellfoundScraper;
+    @Autowired private RssBlogScraper          rssBlogScraper;
 
     @Autowired private JobListingService    jobListingService;
     @Autowired private SourceRepository     sourceRepository;
@@ -41,16 +42,19 @@ public class ScraperService
     // Map scraper names to their instances
     private Map<String, JobScraper> scraperMap()
     {
-        return Map.of(
-            "unstop",           unstopScraper,
-            "internshala",      internshalaScraper,
-            "hackernews",       hackerNewsScraper,
-            "reddit",           redditScraper,
-            "company_careers",  companyCareersScrapers,
-            "linkedin",         linkedInScraper,
-            "naukri",           naukriScraper,
-            "indeed",           indeedScraper,
-            "wellfound",        wellfoundScraper
+        // Map.of() tops out at 10 key-value pairs — we're at exactly that limit,
+        // so this uses Map.ofEntries() instead, which has no such ceiling.
+        return Map.ofEntries(
+            Map.entry("unstop",           unstopScraper),
+            Map.entry("internshala",      internshalaScraper),
+            Map.entry("hackernews",       hackerNewsScraper),
+            Map.entry("reddit",           redditScraper),
+            Map.entry("company_careers",  companyCareersScrapers),
+            Map.entry("linkedin",         linkedInScraper),
+            Map.entry("naukri",           naukriScraper),
+            Map.entry("indeed",           indeedScraper),
+            Map.entry("wellfound",        wellfoundScraper),
+            Map.entry("rss_blogs",        rssBlogScraper)
         );
     }
 
@@ -92,6 +96,7 @@ public class ScraperService
     @Async public void runNaukriScraper()         { runScraper("naukri");          }
     @Async public void runIndeedScraper()         { runScraper("indeed");          }
     @Async public void runWellfoundScraper()      { runScraper("wellfound");       }
+    @Async public void runRssBlogScraper()        { runScraper("rss_blogs");       }
 
     // ------------------------------------------------------------------ //
     //  Shared scraper engine                                               //

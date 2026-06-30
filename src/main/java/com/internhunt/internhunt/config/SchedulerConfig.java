@@ -19,7 +19,7 @@ import java.util.List;
 /**
  * Phase 1B: Scheduled Tasks
  *
- * 1. Auto-scraping every 12 hours (Unstop + Internshala + HackerNews + Reddit + Company careers)
+ * 1. Auto-scraping every 12 hours (Unstop + Internshala + HackerNews + Reddit + Company careers + RSS blogs)
  * 2. Deadline notifications: every morning, scan for jobs closing in ≤ 3 days
  * 3. Expired job cleanup: mark ACTIVE jobs past deadline as EXPIRED
  */
@@ -50,6 +50,9 @@ public class SchedulerConfig
         scraperService.runScraper("internshala");
         scraperService.runScraper("hackernews");
         scraperService.runScraper("reddit");
+
+        // RSS engineering blogs — filtered for hiring-related posts only
+        scraperService.runScraper("rss_blogs");
 
         System.out.println("[scheduler] All scrapers dispatched.");
     }
