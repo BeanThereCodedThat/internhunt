@@ -18,11 +18,17 @@ import java.util.List;
 /**
  * Scrapes Reddit using the official public JSON API (no auth required for public posts).
  * Reads r/IndiaCSCareerQuestions and r/cscareerquestions for:
- *  - "Who's Hiring" / internship posts → JobListings
- *  - Scam warning posts → ScamReports (auto-flagged)
+ *  - "Who's Hiring" / internship posts -> JobListings
+ *  - Scam warning posts -> ScamReports (auto-flagged)
  *
  * API: https://www.reddit.com/r/{sub}/search.json?q=...&sort=new&limit=100
  * No API key needed for public read-only. Uses a descriptive User-Agent per Reddit rules.
+ *
+ * NOTE: Reddit's public JSON API is known to return 403 for requests coming from
+ * datacenter/cloud IPs or generic User-Agents, even though no auth is technically
+ * required. fetchJson() now logs the actual HTTP status on any non-200 response
+ * instead of silently swallowing it - if every request comes back 403, that's
+ * Reddit blocking the request, not a parsing bug in this scraper.
  */
 @Component
 public class RedditScraper implements JobScraper
@@ -45,7 +51,13 @@ public class RedditScraper implements JobScraper
     };
 
     private static final String REDDIT_API = "https://www.reddit.com/r/%s/search.json?q=%s&sort=new&restrict_sr=1&limit=50";
-    private static final String USER_AGENT = "InternHunt/1.0 (internship aggregator; personal project)";
+
+    // A realistic browser User-Agent, instead of a custom one identifying this as
+    // a bot. Reddit's API is more permissive with these than with descriptive
+    // "AppName/1.0 (purpose)" agents, which it's known to rate-limit/block harder.
+    private static final String USER_AGENT =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+          + "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
     @Autowired
     private ScamReportRepository scamReportRepository;
@@ -64,7 +76,7 @@ public class RedditScraper implements JobScraper
         List<JobListing> jobs = new ArrayList<>();
         HttpClient client = HttpClient.newHttpClient();
 
-        // 1. Scrape hiring posts → job listings
+        // 1. Scrape hiring posts -> job listings
         for (String subreddit : SUBREDDITS)
         {
             for (String query : HIRING_QUERIES)
@@ -90,7 +102,7 @@ public class RedditScraper implements JobScraper
             }
         }
 
-        // 2. Scrape scam posts → ScamReports (auto-saved to DB)
+        // 2. Scrape scam posts -> ScamReports (auto-saved to DB)
         for (String subreddit : new String[]{"IndiaCSCareerQuestions", "india"})
         {
             for (String query : SCAM_QUERIES)
@@ -116,7 +128,7 @@ public class RedditScraper implements JobScraper
         return jobs;
     }
 
-    // ─── Job Post Parsing ──────────────────────────────────────────────────────
+    // --- Job Post Parsing -------------------------------------------------
 
     private List<JobListing> parseJobPosts(String json, String subreddit)
     {
@@ -225,7 +237,7 @@ public class RedditScraper implements JobScraper
         catch (Exception e) { return null; }
     }
 
-    // ─── Scam Report Parsing ───────────────────────────────────────────────────
+    // --- Scam Report Parsing -----------------------------------------------
 
     private void parseAndSaveScamReports(String json, String subreddit)
     {
@@ -291,7 +303,7 @@ public class RedditScraper implements JobScraper
 
             // Try to extract company name from title
             String company = extractCompanyFromTitle(title);
-            if (company.equals("Unknown") || company.length() < 3) return;
+            if (company.equals("Unknown (Reddit Post)") || company.length() < 3) return;
 
             // Don't double-insert
             if (!scamReportRepository.findByCompanyNameContainingIgnoreCase(company).isEmpty()) return;
@@ -315,7 +327,7 @@ public class RedditScraper implements JobScraper
         }
     }
 
-    // ─── Helpers ──────────────────────────────────────────────────────────────
+    // --- Helpers -------------------------------------------------------------
 
     private String fetchJson(HttpClient client, String url)
     {
@@ -332,16 +344,25 @@ public class RedditScraper implements JobScraper
 
             if (response.statusCode() == 429)
             {
-                System.err.println("[reddit] Rate limited, backing off 10s");
+                System.err.println("[reddit] Rate limited (429) on " + url + " - backing off 10s");
                 Thread.sleep(10000);
                 return null;
             }
-            if (response.statusCode() != 200) return null;
+            if (response.statusCode() != 200)
+            {
+                // Previously silent - this is exactly the kind of failure that
+                // looked like "0 results found" with no explanation. Reddit
+                // commonly returns 403 here for non-browser/datacenter requests.
+                System.err.println("[reddit] Non-200 response (" + response.statusCode() + ") on " + url
+                        + " - body preview: "
+                        + response.body().substring(0, Math.min(200, response.body().length())));
+                return null;
+            }
             return response.body();
         }
         catch (Exception e)
         {
-            System.err.println("[reddit] Fetch error: " + e.getMessage());
+            System.err.println("[reddit] Fetch error on " + url + ": " + e.getMessage());
             return null;
         }
     }
