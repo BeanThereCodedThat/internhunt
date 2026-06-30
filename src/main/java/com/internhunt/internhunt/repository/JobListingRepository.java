@@ -20,6 +20,13 @@ public interface JobListingRepository extends JpaRepository<JobListing, Integer>
     List<JobListing> findByIsRemoteTrue();
     List<JobListing> findByCompanyNameContainingIgnoreCase(String company);
 
+    // ── Deadline tracking (used by SchedulerConfig) ─────────────────────── //
+    List<JobListing> findByStatusAndDeadlineBetween(
+            JobListing.Status status, LocalDateTime from, LocalDateTime to);
+
+    List<JobListing> findByStatusAndDeadlineBefore(
+            JobListing.Status status, LocalDateTime before);
+
     // ── Search with filters (used by JobListingController) ──────────────── //
     @Query("""
         SELECT j FROM JobListing j

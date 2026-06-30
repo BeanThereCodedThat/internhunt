@@ -4,8 +4,15 @@ import JobCard from './components/JobCard'
 import JobModal from './components/JobModal'
 import StatsBar from './components/StatsBar'
 import ScraperPanel from './components/ScraperPanel'
+import NotificationsPanel from './components/NotificationsPanel'
+import ApplicationTracker from './components/ApplicationTracker'
+import ProfilePage from './pages/ProfilePage'
 
 const PAGE_SIZE = 18
+
+// Hardcoded to user 1 for single-user Phase 1 setup.
+// In Phase 2+ this would come from auth.
+const ACTIVE_USER_ID = 1
 
 export default function App() {
   const [jobs,       setJobs]       = useState([])
@@ -22,17 +29,20 @@ export default function App() {
   const [type,   setType]   = useState('')
   const [remote, setRemote] = useState('')
 
+  // Panel state
+  const [showProfile,      setShowProfile]      = useState(false)
+  const [showNotifs,       setShowNotifs]       = useState(false)
+  const [showApplications, setShowApplications] = useState(false)
+  const [unreadCount,      setUnreadCount]      = useState(0)
+
   const searchTimeout = useRef(null)
 
   const load = useCallback(async (pg = 0) => {
     setLoading(true)
     try {
       const data = await fetchJobs({
-        page:   pg,
-        size:   PAGE_SIZE,
-        search: search.trim(),
-        source,
-        type,
+        page: pg, size: PAGE_SIZE,
+        search: search.trim(), source, type,
         remote: remote === '' ? null : remote === 'true',
       })
       setJobs(data.content || [])
@@ -57,12 +67,26 @@ export default function App() {
     return () => clearTimeout(searchTimeout.current)
   }, [load])
 
+  // Poll unread count every 60s
+  useEffect(() => {
+    async function checkUnread() {
+      try {
+        const res = await fetch(`/api/notifications/user/${ACTIVE_USER_ID}/unread`)
+        if (res.ok) {
+          const data = await res.json()
+          setUnreadCount(Array.isArray(data) ? data.length : 0)
+        }
+      } catch {}
+    }
+    checkUnread()
+    const interval = setInterval(checkUnread, 60000)
+    return () => clearInterval(interval)
+  }, [])
+
   const handleScraped = () => {
     setStatsKey(k => k + 1)
     setTimeout(() => load(0), 5000)
   }
-
-  const totalInternships = jobs.filter(j => j.listingType === 'internship').length
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -71,11 +95,11 @@ export default function App() {
       <header style={{
         background: 'var(--bg2)',
         borderBottom: '1px solid var(--border)',
-        padding: '0 32px',
+        padding: '0 28px',
         height: 60,
         display: 'flex',
         alignItems: 'center',
-        gap: 24,
+        gap: 20,
         position: 'sticky',
         top: 0,
         zIndex: 50,
@@ -83,11 +107,43 @@ export default function App() {
         <div style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '1.35rem', letterSpacing: '-0.02em' }}>
           Intern<span style={{ color: 'var(--accent)' }}>Hunt</span>
         </div>
+
         <div style={{ flex: 1, maxWidth: 520 }}>
           <SearchInput value={search} onChange={setSearch} />
         </div>
+
         <div style={{ marginLeft: 'auto', color: 'var(--muted)', fontSize: '0.8rem' }}>
           {total.toLocaleString()} listings
+        </div>
+
+        {/* Header action buttons */}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+
+          {/* Applications button */}
+          <HeaderBtn
+            onClick={() => setShowApplications(true)}
+            title="Application Tracker"
+          >
+            📋
+          </HeaderBtn>
+
+          {/* Notifications button */}
+          <HeaderBtn
+            onClick={() => setShowNotifs(true)}
+            title="Notifications"
+            badge={unreadCount > 0 ? unreadCount : null}
+          >
+            🔔
+          </HeaderBtn>
+
+          {/* Profile button */}
+          <HeaderBtn
+            onClick={() => setShowProfile(true)}
+            title="Profile"
+            primary
+          >
+            👤 Profile
+          </HeaderBtn>
         </div>
       </header>
 
@@ -113,26 +169,22 @@ export default function App() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <FilterGroup label="Source">
-                {['', 'unstop', 'internshala', 'hackernews'].map(v => (
+                {['', 'unstop', 'internshala', 'hackernews', 'reddit', 'company_careers'].map(v => (
                   <FilterChip key={v} active={source === v} onClick={() => setSource(v)}>
-                    {v || 'All'}
+                    {v === '' ? 'All' : v === 'company_careers' ? 'Companies' : v.charAt(0).toUpperCase() + v.slice(1)}
                   </FilterChip>
                 ))}
               </FilterGroup>
 
               <FilterGroup label="Type">
-                {[['', 'All'], ['internship', 'Internship'], ['full_time', 'Full-time'], ['contract', 'Contract']].map(([v,l]) => (
-                  <FilterChip key={v} active={type === v} onClick={() => setType(v)}>
-                    {l}
-                  </FilterChip>
+                {[['', 'All'], ['internship', 'Internship'], ['full_time', 'Full-time'], ['contract', 'Contract']].map(([v, l]) => (
+                  <FilterChip key={v} active={type === v} onClick={() => setType(v)}>{l}</FilterChip>
                 ))}
               </FilterGroup>
 
               <FilterGroup label="Location">
-                {[['', 'All'], ['true', 'Remote only'], ['false', 'Onsite only']].map(([v, l]) => (
-                  <FilterChip key={v} active={remote === v} onClick={() => setRemote(v)}>
-                    {l}
-                  </FilterChip>
+                {[['', 'All'], ['true', 'Remote'], ['false', 'Onsite']].map(([v, l]) => (
+                  <FilterChip key={v} active={remote === v} onClick={() => setRemote(v)}>{l}</FilterChip>
                 ))}
               </FilterGroup>
             </div>
@@ -140,15 +192,7 @@ export default function App() {
             {(source || type || remote) && (
               <button
                 onClick={() => { setSource(''); setType(''); setRemote('') }}
-                style={{
-                  marginTop: 14,
-                  background: 'none',
-                  color: 'var(--accent)',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  padding: 0,
-                  border: 'none',
-                }}
+                style={{ marginTop: 14, background: 'none', color: 'var(--accent)', fontSize: '0.78rem', fontWeight: 600, padding: 0, border: 'none', cursor: 'pointer' }}
               >
                 Clear all filters
               </button>
@@ -166,8 +210,8 @@ export default function App() {
           {(source || type || remote || search) && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
               {search && <ActiveFilter label={`"${search}"`} onRemove={() => setSearch('')} />}
-              {source && <ActiveFilter label={source} onRemove={() => setSource('')} />}
-              {type   && <ActiveFilter label={type}   onRemove={() => setType('')} />}
+              {source && <ActiveFilter label={source === 'company_careers' ? 'Companies' : source} onRemove={() => setSource('')} />}
+              {type   && <ActiveFilter label={type} onRemove={() => setType('')} />}
               {remote && <ActiveFilter label={remote === 'true' ? 'Remote' : 'Onsite'} onRemove={() => setRemote('')} />}
               <span style={{ color: 'var(--muted)', fontSize: '0.8rem', alignSelf: 'center' }}>
                 {total.toLocaleString()} result{total !== 1 ? 's' : ''}
@@ -189,7 +233,6 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Pagination */}
               {totalPages > 1 && (
                 <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 32, flexWrap: 'wrap' }}>
                   <PageBtn disabled={page === 0} onClick={() => load(page - 1)}>← Prev</PageBtn>
@@ -199,9 +242,7 @@ export default function App() {
                       : page > totalPages - 5 ? totalPages - 7 + i
                       : page - 3 + i
                     return (
-                      <PageBtn key={p} active={p === page} onClick={() => load(p)}>
-                        {p + 1}
-                      </PageBtn>
+                      <PageBtn key={p} active={p === page} onClick={() => load(p)}>{p + 1}</PageBtn>
                     )
                   })}
                   <PageBtn disabled={page >= totalPages - 1} onClick={() => load(page + 1)}>Next →</PageBtn>
@@ -212,13 +253,65 @@ export default function App() {
         </main>
       </div>
 
-      {/* ── Modal ── */}
-      {selected && <JobModal job={selected} onClose={() => setSelected(null)} />}
+      {/* ── Modals / Panels ── */}
+      {selected && <JobModal job={selected} onClose={() => setSelected(null)} userId={ACTIVE_USER_ID} />}
+      {showProfile && <ProfilePage onClose={() => setShowProfile(false)} />}
+      {showNotifs && (
+        <NotificationsPanel
+          userId={ACTIVE_USER_ID}
+          onClose={() => { setShowNotifs(false); setUnreadCount(0) }}
+        />
+      )}
+      {showApplications && (
+        <ApplicationTracker
+          userId={ACTIVE_USER_ID}
+          onClose={() => setShowApplications(false)}
+        />
+      )}
     </div>
   )
 }
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
+
+function HeaderBtn({ onClick, title, children, badge, primary }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: 'relative',
+        background: primary
+          ? (hovered ? 'var(--accent2, #7c3aed)' : 'var(--accent)')
+          : (hovered ? 'var(--bg3)' : 'var(--bg2)'),
+        color: primary ? '#fff' : 'var(--text)',
+        border: `1px solid ${primary ? 'var(--accent)' : 'var(--border)'}`,
+        borderRadius: 9,
+        padding: primary ? '6px 14px' : '6px 10px',
+        cursor: 'pointer',
+        fontSize: primary ? '0.85rem' : '1rem',
+        fontWeight: primary ? 600 : 400,
+        transition: 'all 0.15s',
+        display: 'flex', alignItems: 'center', gap: 6,
+      }}
+    >
+      {children}
+      {badge != null && (
+        <span style={{
+          position: 'absolute', top: -4, right: -4,
+          background: '#ef4444', color: '#fff',
+          borderRadius: '50%', width: 17, height: 17,
+          fontSize: '0.65rem', fontWeight: 700,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          border: '2px solid var(--bg2)',
+        }}>{badge > 9 ? '9+' : badge}</span>
+      )}
+    </button>
+  )
+}
 
 function SearchInput({ value, onChange }) {
   return (
@@ -229,15 +322,9 @@ function SearchInput({ value, onChange }) {
         onChange={e => onChange(e.target.value)}
         placeholder="Search jobs, companies, skills…"
         style={{
-          width: '100%',
-          background: 'var(--bg3)',
-          border: '1px solid var(--border)',
-          borderRadius: 9,
-          padding: '8px 14px 8px 38px',
-          color: 'var(--text)',
-          fontSize: '0.9rem',
-          outline: 'none',
-          transition: 'border-color 0.15s',
+          width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)',
+          borderRadius: 9, padding: '8px 14px 8px 38px', color: 'var(--text)',
+          fontSize: '0.9rem', outline: 'none', transition: 'border-color 0.15s',
         }}
         onFocus={e => e.target.style.borderColor = 'var(--accent)'}
         onBlur={e => e.target.style.borderColor = 'var(--border)'}
@@ -257,19 +344,13 @@ function FilterGroup({ label, children }) {
 
 function FilterChip({ active, onClick, children }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        background: active ? 'var(--accent)' : 'var(--bg3)',
-        color: active ? '#fff' : 'var(--muted)',
-        border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-        borderRadius: 20,
-        padding: '3px 10px',
-        fontSize: '0.75rem',
-        fontWeight: active ? 600 : 400,
-        transition: 'all 0.15s',
-      }}
-    >
+    <button onClick={onClick} style={{
+      background: active ? 'var(--accent)' : 'var(--bg3)',
+      color: active ? '#fff' : 'var(--muted)',
+      border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+      borderRadius: 20, padding: '3px 10px', fontSize: '0.75rem',
+      fontWeight: active ? 600 : 400, transition: 'all 0.15s', cursor: 'pointer',
+    }}>
       {children}
     </button>
   )
@@ -284,29 +365,21 @@ function ActiveFilter({ label, onRemove }) {
       fontSize: '0.78rem', fontWeight: 600,
     }}>
       {label}
-      <button onClick={onRemove} style={{ background: 'none', color: 'var(--accent)', fontSize: '1rem', lineHeight: 1, paddingBottom: 1 }}>×</button>
+      <button onClick={onRemove} style={{ background: 'none', color: 'var(--accent)', fontSize: '1rem', lineHeight: 1, paddingBottom: 1, border: 'none', cursor: 'pointer' }}>×</button>
     </span>
   )
 }
 
 function PageBtn({ active, disabled, onClick, children }) {
   return (
-    <button
-      disabled={disabled}
-      onClick={onClick}
-      style={{
-        background: active ? 'var(--accent)' : 'var(--bg2)',
-        color: active ? '#fff' : disabled ? 'var(--muted)' : 'var(--text)',
-        border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-        borderRadius: 8,
-        padding: '7px 14px',
-        fontSize: '0.85rem',
-        fontWeight: active ? 600 : 400,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.4 : 1,
-        transition: 'all 0.15s',
-      }}
-    >
+    <button disabled={disabled} onClick={onClick} style={{
+      background: active ? 'var(--accent)' : 'var(--bg2)',
+      color: active ? '#fff' : disabled ? 'var(--muted)' : 'var(--text)',
+      border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+      borderRadius: 8, padding: '7px 14px', fontSize: '0.85rem',
+      fontWeight: active ? 600 : 400, cursor: disabled ? 'not-allowed' : 'pointer',
+      opacity: disabled ? 0.4 : 1, transition: 'all 0.15s',
+    }}>
       {children}
     </button>
   )
@@ -315,18 +388,15 @@ function PageBtn({ active, disabled, onClick, children }) {
 function SkeletonCard() {
   return (
     <div style={{
-      background: 'var(--card-bg)',
-      border: '1px solid var(--border)',
-      borderRadius: 'var(--radius)',
-      padding: '20px 22px',
+      background: 'var(--card-bg)', border: '1px solid var(--border)',
+      borderRadius: 'var(--radius)', padding: '20px 22px',
       display: 'flex', flexDirection: 'column', gap: 12,
     }}>
       {[['70%', 18], ['40%', 13], ['90%', 11], ['60%', 11]].map(([w, h], i) => (
         <div key={i} style={{
           width: w, height: h,
           background: 'linear-gradient(90deg, var(--bg3) 25%, var(--border) 50%, var(--bg3) 75%)',
-          backgroundSize: '200% 100%',
-          borderRadius: 4,
+          backgroundSize: '200% 100%', borderRadius: 4,
           animation: `shimmer 1.5s infinite ${i * 0.1}s`,
         }} />
       ))}

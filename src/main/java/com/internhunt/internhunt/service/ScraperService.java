@@ -8,29 +8,51 @@ import com.internhunt.internhunt.repository.JobSourceRepository;
 import com.internhunt.internhunt.repository.ScraperLogRepository;
 import com.internhunt.internhunt.repository.SourceRepository;
 import com.internhunt.internhunt.scraper.base.JobScraper;
-import com.internhunt.internhunt.scraper.companies.HackerNewsScraper;
-import com.internhunt.internhunt.scraper.companies.InternshalaScraper;
-import com.internhunt.internhunt.scraper.companies.UnstopScraper;
+import com.internhunt.internhunt.scraper.companies.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
 public class ScraperService
 {
-    @Autowired private UnstopScraper        unstopScraper;
-    @Autowired private InternshalaScraper   internshalaScraper;
-    @Autowired private HackerNewsScraper    hackerNewsScraper;
+    // ---- scrapers ----
+    @Autowired private UnstopScraper          unstopScraper;
+    @Autowired private InternshalaScraper      internshalaScraper;
+    @Autowired private HackerNewsScraper       hackerNewsScraper;
+    @Autowired private RedditScraper           redditScraper;
+    @Autowired private CompanyCareersScrapers  companyCareersScrapers;
+    @Autowired private LinkedInScraper         linkedInScraper;
+    @Autowired private NaukriScraper           naukriScraper;
+    @Autowired private IndeedScraper           indeedScraper;
+    @Autowired private WellfoundScraper        wellfoundScraper;
 
     @Autowired private JobListingService    jobListingService;
     @Autowired private SourceRepository     sourceRepository;
     @Autowired private JobSourceRepository  jobSourceRepository;
     @Autowired private ScraperLogRepository scraperLogRepository;
     @Autowired private KeywordSkillExtractor skillExtractor;
+
+    // Map scraper names to their instances
+    private Map<String, JobScraper> scraperMap()
+    {
+        return Map.of(
+            "unstop",           unstopScraper,
+            "internshala",      internshalaScraper,
+            "hackernews",       hackerNewsScraper,
+            "reddit",           redditScraper,
+            "company_careers",  companyCareersScrapers,
+            "linkedin",         linkedInScraper,
+            "naukri",           naukriScraper,
+            "indeed",           indeedScraper,
+            "wellfound",        wellfoundScraper
+        );
+    }
 
     // ------------------------------------------------------------------ //
     //  Public API — all async so the HTTP response returns immediately     //
@@ -39,18 +61,37 @@ public class ScraperService
     @Async
     public void runScraper(String sourceName)
     {
-        switch (sourceName)
+        JobScraper scraper = scraperMap().get(sourceName);
+        if (scraper == null)
         {
-            case "unstop"      -> runScraperInternal("unstop",      unstopScraper);
-            case "internshala" -> runScraperInternal("internshala", internshalaScraper);
-            case "hackernews"  -> runScraperInternal("hackernews",  hackerNewsScraper);
-            default            -> System.err.println("[scraper] Unknown source: " + sourceName);
+            System.err.println("[scraper] Unknown source: " + sourceName);
+            return;
+        }
+        runScraperInternal(sourceName, scraper);
+    }
+
+    /** Runs all active scrapers sequentially (used by the scheduler). */
+    @Async
+    public void runAllActive()
+    {
+        List<Source> activeSources = sourceRepository.findByIsActiveTrue();
+        for (Source s : activeSources)
+        {
+            JobScraper scraper = scraperMap().get(s.getName());
+            if (scraper != null) runScraperInternal(s.getName(), scraper);
         }
     }
 
-    @Async public void runUnstopScraper()      { runScraper("unstop");      }
-    @Async public void runInternshalaScraper() { runScraper("internshala"); }
-    @Async public void runHackerNewsScraper()  { runScraper("hackernews");  }
+    // Convenience individual methods (for ScraperController backward compat)
+    @Async public void runUnstopScraper()         { runScraper("unstop");          }
+    @Async public void runInternshalaScraper()    { runScraper("internshala");     }
+    @Async public void runHackerNewsScraper()     { runScraper("hackernews");      }
+    @Async public void runRedditScraper()         { runScraper("reddit");          }
+    @Async public void runCompanyCareersScraper() { runScraper("company_careers"); }
+    @Async public void runLinkedInScraper()       { runScraper("linkedin");        }
+    @Async public void runNaukriScraper()         { runScraper("naukri");          }
+    @Async public void runIndeedScraper()         { runScraper("indeed");          }
+    @Async public void runWellfoundScraper()      { runScraper("wellfound");       }
 
     // ------------------------------------------------------------------ //
     //  Shared scraper engine                                               //
@@ -62,8 +103,7 @@ public class ScraperService
 
         if (sourceOpt.isEmpty())
         {
-            System.err.println("[" + sourceName + "] Source not found in database. "
-                    + "Run the INSERT into sources first.");
+            System.err.println("[" + sourceName + "] Source not found in DB. Run the seed SQL first.");
             return;
         }
 
@@ -76,21 +116,14 @@ public class ScraperService
             scraper.setSource(source);
             List<JobListing> jobs = scraper.scrape();
 
-            int saved   = 0;
-            int skipped = 0;
+            int saved = 0, skipped = 0;
 
             for (JobListing job : jobs)
             {
                 try
                 {
-                    Optional<JobSource> existing =
-                            jobSourceRepository.findBySourceUrl(job.getSourceUrl());
-
-                    if (existing.isPresent())
-                    {
-                        skipped++;
-                        continue;
-                    }
+                    Optional<JobSource> existing = jobSourceRepository.findBySourceUrl(job.getSourceUrl());
+                    if (existing.isPresent()) { skipped++; continue; }
 
                     JobListing savedJob = jobListingService.createJobListing(job);
 
@@ -107,8 +140,7 @@ public class ScraperService
                 }
                 catch (Exception e)
                 {
-                    System.err.println("[" + sourceName + "] Failed to save job: "
-                            + e.getMessage());
+                    System.err.println("[" + sourceName + "] Failed to save job: " + e.getMessage());
                     skipped++;
                 }
             }
@@ -121,10 +153,8 @@ public class ScraperService
             log.setJobsSkipped(skipped);
             log.setStatus(ScraperLog.Status.SUCCESS);
 
-            System.out.println("[" + sourceName + "] scrape complete — "
-                    + "found: " + jobs.size()
-                    + "  saved: " + saved
-                    + "  skipped: " + skipped);
+            System.out.printf("[%s] done — found: %d  saved: %d  skipped: %d%n",
+                    sourceName, jobs.size(), saved, skipped);
         }
         catch (Exception e)
         {
