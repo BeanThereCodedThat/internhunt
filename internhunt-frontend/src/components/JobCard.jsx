@@ -2,9 +2,16 @@ import { useState } from 'react'
 import MatchScoreBadge from './MatchScoreBadge'
 
 const SOURCE_COLORS = {
-  unstop:      { bg: '#1a1a2e', accent: '#6c63ff', label: 'Unstop' },
-  internshala: { bg: '#1a2a1a', accent: '#22d3a0', label: 'Internshala' },
-  hackernews:  { bg: '#2a1a0e', accent: '#fb923c', label: 'HackerNews' },
+  unstop:           { bg: '#1a1a2e', accent: '#6c63ff', label: 'Unstop' },
+  internshala:      { bg: '#1a2a1a', accent: '#22d3a0', label: 'Internshala' },
+  hackernews:       { bg: '#2a1a0e', accent: '#fb923c', label: 'HackerNews' },
+  reddit:           { bg: '#2a1414', accent: '#ff5722', label: 'Reddit' },
+  company_careers:  { bg: '#14202a', accent: '#38bdf8', label: 'Company Careers' },
+  rss_blogs:        { bg: '#241a2a', accent: '#c084fc', label: 'Eng Blog' },
+  linkedin:         { bg: '#0f1e2e', accent: '#0a66c2', label: 'LinkedIn' },
+  naukri:           { bg: '#2a1f0a', accent: '#f6a821', label: 'Naukri' },
+  indeed:           { bg: '#0f1a2e', accent: '#2557a7', label: 'Indeed' },
+  wellfound:        { bg: '#14241a', accent: '#4ade80', label: 'Wellfound' },
 }
 
 function timeAgo(dateStr) {

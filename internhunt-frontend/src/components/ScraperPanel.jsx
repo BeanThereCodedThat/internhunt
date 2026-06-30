@@ -7,6 +7,11 @@ const SCRAPERS = [
   { id: 'internshala',     label: '📚 Internshala',     desc: 'India internship listings', color: '#22d3a0' },
   { id: 'reddit',          label: '🔴 Reddit',          desc: 'r/IndiaCSCareerQuestions', color: '#ff6314' },
   { id: 'hackernews',      label: '🔶 HackerNews',      desc: 'Who\'s Hiring thread', color: '#fb923c' },
+  { id: 'rss_blogs',       label: '📰 Eng Blogs (RSS)', desc: '8 blogs, filtered for hiring posts', color: '#c084fc' },
+  { id: 'linkedin',        label: '💼 LinkedIn (untested)',  desc: 'Inactive - manual trigger only', color: '#0a66c2' },
+  { id: 'naukri',          label: '🟠 Naukri (untested)',    desc: 'Inactive - manual trigger only', color: '#f6a821' },
+  { id: 'indeed',          label: '🔵 Indeed (untested)',    desc: 'Inactive - manual trigger only', color: '#2557a7' },
+  { id: 'wellfound',       label: '🟢 Wellfound (untested)', desc: 'Inactive - manual trigger only', color: '#4ade80' },
 ]
 
 export default function ScraperPanel({ onScraped }) {

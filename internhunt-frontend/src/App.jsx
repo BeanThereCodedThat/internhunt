@@ -52,7 +52,7 @@ export default function App() {
 
       // Fire-and-forget — badges just show "no data" until this resolves.
       const ids = (data.content || []).map(j => j.id)
-      fetchMatchScores(ids).then(setScores)
+      fetchMatchScores(ids, ACTIVE_USER_ID).then(setScores)
     } catch (e) {
       console.error(e)
     } finally {
@@ -169,9 +169,12 @@ export default function App() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <FilterGroup label="Source">
-                {['', 'unstop', 'internshala', 'hackernews', 'reddit', 'company_careers'].map(v => (
+                {['', 'unstop', 'internshala', 'hackernews', 'reddit', 'company_careers', 'rss_blogs', 'linkedin', 'naukri', 'indeed', 'wellfound'].map(v => (
                   <FilterChip key={v} active={source === v} onClick={() => setSource(v)}>
-                    {v === '' ? 'All' : v === 'company_careers' ? 'Companies' : v.charAt(0).toUpperCase() + v.slice(1)}
+                    {v === '' ? 'All'
+                      : v === 'company_careers' ? 'Companies'
+                      : v === 'rss_blogs' ? 'Eng Blogs'
+                      : v.charAt(0).toUpperCase() + v.slice(1)}
                   </FilterChip>
                 ))}
               </FilterGroup>
